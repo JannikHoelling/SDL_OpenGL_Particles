@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <math.h>
 
 typedef struct { 
 	GLfloat x, y, dx, dy;
@@ -239,10 +240,27 @@ bool initGL()
 			for(int i=0 ; i < vertexcount; i++) {
 				Vertex v;
 
-				v.x = i * 0.01f;
-				v.y = i * 0.01f;
-				v.dx = 0;
-				v.dy = 0;
+				float radius = 0.5f;
+
+				float angle = 1.0f/vertexcount * i * M_PI * 2;
+
+				v.x = cos(angle) * radius;
+				v.y = sin(angle) * radius;
+
+				float dx = v.y;
+				float dy = -v.x;
+
+				float length = sqrt(dx * dx + dy * dy);
+				float force = sqrt((6.67384E-11 * 10E03) / length);
+
+				dx /= length;
+				dy /= length;
+
+				dx *= force;
+				dy *= force;
+
+				v.dx = dx;
+				v.dy = dy;
 
 				vertices.push_back(v);
 				indexData[i] = i;
@@ -284,7 +302,7 @@ void update()
 
 		GLfloat r = sqrt(dx * dx + dy * dy);
 
-		GLfloat force = (6.67384E-11 * 10E02) / (r*r);
+		GLfloat force = (6.67384E-11 * 10E03) / (r*r);
 
 		vertices[i].dx += dx * force / r;
 		vertices[i].dy += dy * force / r;
