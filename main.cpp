@@ -7,6 +7,10 @@
 #include <string>
 #include <vector>
 
+typedef struct { 
+	GLfloat x, y, dx, dy;
+} Vertex;
+
 //Screen dimension constants
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
@@ -43,7 +47,7 @@ SDL_GLContext gContext;
 bool gRenderQuad = true;
 
 //Program settings
-const int vertexcount = 32;
+const int vertexcount = 64;
 
 //Graphics program
 GLuint gProgramID = 0;
@@ -52,7 +56,7 @@ GLuint gVBO = 0;
 GLuint gIBO = 0;
 
 //GLfloat vertexData[vertexcount*2];
-std::vector<GLfloat> vertexData;
+std::vector<Vertex> vertices;
 
 bool init()
 {
@@ -73,7 +77,7 @@ bool init()
 		SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
 
 		//Create window
-		gWindow = SDL_CreateWindow( "SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
+		gWindow = SDL_CreateWindow( "SDL OpenGL Particles", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
 		if( gWindow == NULL )
 		{
 			printf( "Window could not be created! SDL Error: %s\n", SDL_GetError() );
@@ -233,8 +237,14 @@ bool initGL()
 			GLuint indexData[vertexcount];
 
 			for(int i=0 ; i < vertexcount; i++) {
-				vertexData.push_back(i * 0.01f);
-				vertexData.push_back(i * 0.01f);
+				Vertex v;
+
+				v.x = i * 0.01f;
+				v.y = i * 0.01f;
+				v.dx = 0;
+				v.dy = 0;
+
+				vertices.push_back(v);
 				indexData[i] = i;
 			}
 
@@ -242,7 +252,7 @@ bool initGL()
 			glGenBuffers( 1, &gVBO );
 			glBindBuffer( GL_ARRAY_BUFFER, gVBO );
 			//glBufferData( GL_ARRAY_BUFFER, 2 * vertexcount * sizeof(GLfloat), vertexData, GL_STREAM_COPY );
-			glBufferData( GL_ARRAY_BUFFER, vertexData.size() * sizeof(GLfloat), vertexData.data(), GL_STREAM_COPY );
+			glBufferData( GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STREAM_COPY );
 
 			//Create IBO
 			glGenBuffers( 1, &gIBO );
@@ -265,16 +275,27 @@ void handleKeys( unsigned char key, int x, int y )
 
 void update()
 {
-	printf("UDPATE \n");
+	//printf("UDPATE \n");
 	
 	for(int i=0 ; i < vertexcount; i++) {
-		vertexData[i*2 + 0] += 0.01f;
-		vertexData[i*2 + 1] -= 0.01f;
+
+		GLfloat dx = 0.0f - vertices[i].x;
+		GLfloat dy = 0.0f - vertices[i].y;
+
+		GLfloat r = sqrt(dx * dx + dy * dy);
+
+		GLfloat force = (6.67384E-11 * 10E02) / (r*r);
+
+		vertices[i].dx += dx * force / r;
+		vertices[i].dy += dy * force / r;
+
+		vertices[i].x += vertices[i].dx;
+		vertices[i].y += vertices[i].dy;
 	}
 
 	// Update VBO
 	glBindBuffer( GL_ARRAY_BUFFER, gVBO );
-	glBufferData( GL_ARRAY_BUFFER, vertexData.size() * sizeof(GLfloat), vertexData.data(), GL_STREAM_COPY );
+	glBufferData( GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STREAM_COPY );
 }
 
 void render()
@@ -293,7 +314,7 @@ void render()
 
 		//Set vertex data
 		glBindBuffer( GL_ARRAY_BUFFER, gVBO );
-		glVertexAttribPointer( gVertexPos2DLocation, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), NULL );
+		glVertexAttribPointer( gVertexPos2DLocation, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), NULL );
 
 		//Set index data and render
 		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, gIBO );
