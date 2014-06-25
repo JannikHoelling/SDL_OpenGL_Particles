@@ -11,7 +11,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "GLShader.h"
+#include "GLShader.hpp"
 
 typedef struct { 
 	GLfloat x, y, dx, dy;
