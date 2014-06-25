@@ -6,7 +6,11 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <iostream>
+#include <fstream>
 #include <math.h>
+
+#include "GLShader.h"
 
 typedef struct { 
 	GLfloat x, y, dx, dy;
@@ -34,10 +38,6 @@ void render();
 //Frees media and shuts down SDL
 void close();
 
-//Shader loading utility programs
-void printProgramLog( GLuint program );
-void printShaderLog( GLuint shader );
-
 //The window we'll be rendering to
 SDL_Window* gWindow = NULL;
 
@@ -48,7 +48,7 @@ SDL_GLContext gContext;
 bool gRenderQuad = true;
 
 //Program settings
-const int vertexcount = 64;
+const int vertexcount = 128;
 
 //Graphics program
 GLuint gProgramID = 0;
@@ -122,95 +122,6 @@ bool init()
 	return success;
 }
 
-bool initVertexShader() {
-	//Success flag
-	bool success = true;
-
-	//Create vertex shader
-	GLuint vertexShader = glCreateShader( GL_VERTEX_SHADER );
-
-	//Get vertex source
-	const GLchar* vertexShaderSource[] =
-	{
-		"#version 130\nin vec2 LVertexPos2D; void main() { gl_Position = vec4( LVertexPos2D.x, LVertexPos2D.y, 0, 1 ); }"
-	};
-
-	//Set vertex source
-	glShaderSource( vertexShader, 1, vertexShaderSource, NULL );
-
-	//Compile vertex source
-	glCompileShader( vertexShader );
-
-	//Check vertex shader for errors
-	GLint vShaderCompiled = GL_FALSE;
-	glGetShaderiv( vertexShader, GL_COMPILE_STATUS, &vShaderCompiled );
-	if( vShaderCompiled != GL_TRUE )
-	{
-		printf( "Unable to compile vertex shader %d!\n", vertexShader );
-		printShaderLog( vertexShader );
-        success = false;
-	}
-	else {
-		glAttachShader( gProgramID, vertexShader );
-	}
-
-	return success;
-}
-
-bool initFragmentShader() 
-{
-	//Success flag
-	bool success = true;
-
-	//Create fragment shader
-	GLuint fragmentShader = glCreateShader( GL_FRAGMENT_SHADER );
-
-	//Get fragment source
-	const GLchar* fragmentShaderSource[] =
-	{
-		"#version 130\nout vec4 LFragment; void main() { LFragment = vec4( 1.0, 1.0, 1.0, 1.0 ); }"
-	};
-
-	//Set fragment source
-	glShaderSource( fragmentShader, 1, fragmentShaderSource, NULL );
-
-	//Compile fragment source
-	glCompileShader( fragmentShader );
-
-	//Check fragment shader for errors
-	GLint fShaderCompiled = GL_FALSE;
-	glGetShaderiv( fragmentShader, GL_COMPILE_STATUS, &fShaderCompiled );
-	if( fShaderCompiled != GL_TRUE )
-	{
-		printf( "Unable to compile fragment shader %d!\n", fragmentShader );
-		printShaderLog( fragmentShader );
-		success = false;
-	}
-	else {
-		//Attach fragment shader to program
-		glAttachShader( gProgramID, fragmentShader );
-	}
-	return success;
-}
-
-bool linkProgram() {
-	bool success = true;
-
-	//Link program
-	glLinkProgram( gProgramID );
-
-	//Check for errors
-	GLint programSuccess = GL_TRUE;
-	glGetProgramiv( gProgramID, GL_LINK_STATUS, &programSuccess );
-	if( programSuccess != GL_TRUE )
-	{
-		printf( "Error linking program %d!\n", gProgramID );
-		printProgramLog( gProgramID );
-		success = false;
-	}
-	return success;
-}
-
 bool initGL()
 {
 	//Success flag
@@ -219,64 +130,63 @@ bool initGL()
 	//Generate program
 	gProgramID = glCreateProgram();
 
-	if(initVertexShader() && initFragmentShader() && linkProgram())
+	gProgramID = LoadShader("vertex.vert", "fragment.frag");
+
+	//Get vertex attribute location
+	gVertexPos2DLocation = glGetAttribLocation( gProgramID, "LVertexPos2D" );
+	if( gVertexPos2DLocation == -1 )
 	{
-		//Get vertex attribute location
-		gVertexPos2DLocation = glGetAttribLocation( gProgramID, "LVertexPos2D" );
-		if( gVertexPos2DLocation == -1 )
-		{
-			printf( "LVertexPos2D is not a valid glsl program variable!\n" );
-			success = false;
+		printf( "LVertexPos2D is not a valid glsl program variable!\n" );
+		success = false;
+	}
+	else
+	{
+		//Initialize clear color
+		glClearColor( 0.f, 0.f, 0.f, 1.f );
+
+		//VBO data
+		//IBO data
+		GLuint indexData[vertexcount];
+
+		for(int i=0 ; i < vertexcount; i++) {
+			Vertex v;
+
+			float radius = 0.5f;
+
+			float angle = 1.0f/vertexcount * i * M_PI * 2;
+
+			v.x = cos(angle) * radius;
+			v.y = sin(angle) * radius;
+
+			float dx = v.y;
+			float dy = -v.x;
+
+			float length = sqrt(dx * dx + dy * dy);
+			float force = sqrt((6.67384E-11 * 10E03) / length);
+
+			dx /= length;
+			dy /= length;
+
+			dx *= force;
+			dy *= force;
+
+			v.dx = dx;
+			v.dy = dy;
+
+			vertices.push_back(v);
+			indexData[i] = i;
 		}
-		else
-		{
-			//Initialize clear color
-			glClearColor( 0.f, 0.f, 0.f, 1.f );
 
-			//VBO data
-			//IBO data
-			GLuint indexData[vertexcount];
+		//Create VBO
+		glGenBuffers( 1, &gVBO );
+		glBindBuffer( GL_ARRAY_BUFFER, gVBO );
+		//glBufferData( GL_ARRAY_BUFFER, 2 * vertexcount * sizeof(GLfloat), vertexData, GL_STREAM_COPY );
+		glBufferData( GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STREAM_COPY );
 
-			for(int i=0 ; i < vertexcount; i++) {
-				Vertex v;
-
-				float radius = 0.5f;
-
-				float angle = 1.0f/vertexcount * i * M_PI * 2;
-
-				v.x = cos(angle) * radius;
-				v.y = sin(angle) * radius;
-
-				float dx = v.y;
-				float dy = -v.x;
-
-				float length = sqrt(dx * dx + dy * dy);
-				float force = sqrt((6.67384E-11 * 10E03) / length);
-
-				dx /= length;
-				dy /= length;
-
-				dx *= force;
-				dy *= force;
-
-				v.dx = dx;
-				v.dy = dy;
-
-				vertices.push_back(v);
-				indexData[i] = i;
-			}
-
-			//Create VBO
-			glGenBuffers( 1, &gVBO );
-			glBindBuffer( GL_ARRAY_BUFFER, gVBO );
-			//glBufferData( GL_ARRAY_BUFFER, 2 * vertexcount * sizeof(GLfloat), vertexData, GL_STREAM_COPY );
-			glBufferData( GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STREAM_COPY );
-
-			//Create IBO
-			glGenBuffers( 1, &gIBO );
-			glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, gIBO );
-			glBufferData( GL_ELEMENT_ARRAY_BUFFER, vertexcount * sizeof(GLuint), indexData, GL_STATIC_DRAW );
-		}
+		//Create IBO
+		glGenBuffers( 1, &gIBO );
+		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, gIBO );
+		glBufferData( GL_ELEMENT_ARRAY_BUFFER, vertexcount * sizeof(GLuint), indexData, GL_STATIC_DRAW );
 	}
 	
 	return success;
@@ -297,12 +207,12 @@ void update()
 	
 	for(int i=0 ; i < vertexcount; i++) {
 
-		GLfloat dx = 0.0f - vertices[i].x;
-		GLfloat dy = 0.0f - vertices[i].y;
+		float dx = 0.0f - vertices[i].x;
+		float dy = 0.0f - vertices[i].y;
 
-		GLfloat r = sqrt(dx * dx + dy * dy);
+		float r = sqrt(dx * dx + dy * dy);
 
-		GLfloat force = (6.67384E-11 * 10E03) / (r*r);
+		float force = (6.67384E-11 * 10E03) / (r*r);
 
 		vertices[i].dx += dx * force / r;
 		vertices[i].dy += dy * force / r;
@@ -360,7 +270,7 @@ void close()
 	SDL_Quit();
 }
 
-void printProgramLog( GLuint program )
+/*void printProgramLog( GLuint program )
 {
 	//Make sure name is shader
 	if( glIsProgram( program ) )
@@ -422,7 +332,7 @@ void printShaderLog( GLuint shader )
 	{
 		printf( "Name %d is not a shader\n", shader );
 	}
-}
+}*/
 
 int main( int argc, char* args[] )
 {
