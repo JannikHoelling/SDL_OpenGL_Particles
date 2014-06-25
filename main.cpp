@@ -137,63 +137,53 @@ bool initGL()
 
 	gProgramID = LoadShader("vertex.vert", "fragment.frag");
 
-	//Get vertex attribute location
-	gVertexPos2DLocation = glGetAttribLocation( gProgramID, "LVertexPos2D" );
-	if( gVertexPos2DLocation == -1 )
-	{
-		printf( "LVertexPos2D is not a valid glsl program variable!\n" );
-		success = false;
+	//Initialize clear color
+	glClearColor( 0.f, 0.f, 0.f, 1.f );
+
+	//VBO data
+	//IBO data
+	GLuint indexData[vertexcount];
+
+	for(int i=0 ; i < vertexcount; i++) {
+		Vertex v;
+
+		float radius = 0.5f;
+
+		float angle = 1.0f/vertexcount * i * M_PI * 2;
+
+		v.x = cos(angle) * radius;
+		v.y = sin(angle) * radius;
+
+		float dx = v.y;
+		float dy = -v.x;
+
+		float length = sqrt(dx * dx + dy * dy);
+		float force = sqrt((6.67384E-11 * 10E03) / length);
+
+		dx /= length;
+		dy /= length;
+
+		dx *= force;
+		dy *= force;
+
+		v.dx = dx;
+		v.dy = dy;
+
+		vertices.push_back(v);
+		indexData[i] = i;
 	}
-	else
-	{
-		//Initialize clear color
-		glClearColor( 0.f, 0.f, 0.f, 1.f );
 
-		//VBO data
-		//IBO data
-		GLuint indexData[vertexcount];
+	//Create VBO
+	glGenBuffers( 1, &gVBO );
+	glBindBuffer( GL_ARRAY_BUFFER, gVBO );
+	glBufferData( GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STREAM_COPY );
 
-		for(int i=0 ; i < vertexcount; i++) {
-			Vertex v;
-
-			float radius = 0.5f;
-
-			float angle = 1.0f/vertexcount * i * M_PI * 2;
-
-			v.x = cos(angle) * radius;
-			v.y = sin(angle) * radius;
-
-			float dx = v.y;
-			float dy = -v.x;
-
-			float length = sqrt(dx * dx + dy * dy);
-			float force = sqrt((6.67384E-11 * 10E03) / length);
-
-			dx /= length;
-			dy /= length;
-
-			dx *= force;
-			dy *= force;
-
-			v.dx = dx;
-			v.dy = dy;
-
-			vertices.push_back(v);
-			indexData[i] = i;
-		}
-
-		//Create VBO
-		glGenBuffers( 1, &gVBO );
-		glBindBuffer( GL_ARRAY_BUFFER, gVBO );
-		//glBufferData( GL_ARRAY_BUFFER, 2 * vertexcount * sizeof(GLfloat), vertexData, GL_STREAM_COPY );
-		glBufferData( GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STREAM_COPY );
-
-		//Create IBO
-		glGenBuffers( 1, &gIBO );
-		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, gIBO );
-		glBufferData( GL_ELEMENT_ARRAY_BUFFER, vertexcount * sizeof(GLuint), indexData, GL_STATIC_DRAW );
-	}
+	//Create IBO
+	glGenBuffers( 1, &gIBO );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, gIBO );
+	glBufferData( GL_ELEMENT_ARRAY_BUFFER, vertexcount * sizeof(GLuint), indexData, GL_STATIC_DRAW );
 	
+
 	return success;
 }
 
@@ -244,20 +234,12 @@ void render()
 		//Bind program
 		glUseProgram( gProgramID );
 
-		//Enable vertex position
-		glEnableVertexAttribArray( gVertexPos2DLocation );
+		glEnableClientState( GL_VERTEX_ARRAY );
 
-		//Set vertex data
+		//Set vertex data and draw
 		glBindBuffer( GL_ARRAY_BUFFER, gVBO );
-		glVertexAttribPointer( gVertexPos2DLocation, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), NULL );
-
-		//Set index data and render
-		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, gIBO );
-		//glDrawElements( GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, NULL );
+		glVertexPointer( 2, GL_FLOAT, sizeof(Vertex), NULL );
 		glDrawElements( GL_POINTS, vertexcount, GL_UNSIGNED_INT, NULL );
-
-		//Disable vertex position
-		glDisableVertexAttribArray( gVertexPos2DLocation );
 
 		//Unbind program
 		glUseProgram( NULL );
