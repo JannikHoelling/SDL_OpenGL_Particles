@@ -3,6 +3,8 @@
 
 #include "GL/glew.h"
 
-GLuint LoadShader(const char *vertex_path, const char *fragment_path);
+GLuint loadVertexShader(const char *vertex_path);
+GLuint loadFragmentShader(const char *fragment_path);
+GLuint loadShader(GLuint vertex, GLuint fragment);
 
 #endif

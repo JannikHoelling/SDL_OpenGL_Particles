@@ -90,15 +90,16 @@ void printShaderLog( GLuint shader )
 }
 
 
-bool loadVertexShader(GLuint program, const char *shaderSource) 
+GLuint loadVertexShader(const char *vertex_path) 
 {
-	bool success = true;
+	std::string vertShaderStr = readFile(vertex_path);
+	const char *vertShaderSrc = vertShaderStr.c_str();
 
 	//Create vertex shader
 	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
 
 	//Set vertex source
-	glShaderSource(vertexShader, 1, &shaderSource, NULL);
+	glShaderSource(vertexShader, 1, &vertShaderSrc, NULL);
 
 	//Compile vertex source
 	glCompileShader( vertexShader );
@@ -110,25 +111,27 @@ bool loadVertexShader(GLuint program, const char *shaderSource)
 	{
 		printf("Unable to compile vertex shader %d!\n", vertexShader);
 		printShaderLog(vertexShader);
-        success = false;
+
+		return -1;
 	}
 	else {
 		printf("Loaded Vertex Shader correctly!\n");
-		glAttachShader(program, vertexShader);
-	}
+		
 
-	return success;
+		return vertexShader;
+	}
 }
 
-bool loadFragmentShader(GLuint program, const char *shaderSource) 
+GLuint loadFragmentShader(const char *fragment_path) 
 {
-	bool success = true;
+	std::string fragShaderStr = readFile(fragment_path);
+	const char *fragShaderSrc = fragShaderStr.c_str();
 
 	//Create fragment shader
 	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
 	//Set fragment source
-	glShaderSource(fragmentShader, 1, &shaderSource, NULL);
+	glShaderSource(fragmentShader, 1, &fragShaderSrc, NULL);
 
 	//Compile fragment source
 	glCompileShader( fragmentShader );
@@ -140,27 +143,20 @@ bool loadFragmentShader(GLuint program, const char *shaderSource)
 	{
 		printf( "Unable to compile fragment shader %d!\n", fragmentShader);
 		printShaderLog(fragmentShader);
-		success = false;
+		return -1;
 	}
 	else {
 		printf("Loaded Fragment Shader correctly!\n");
-		glAttachShader(program, fragmentShader);
+		return fragmentShader;
 	}
-	return success;
 }
 
-GLuint LoadShader(const char *vertex_path, const char *fragment_path)
+GLuint loadShader(GLuint vertex, GLuint fragment)
 {
 	GLuint program = glCreateProgram();
 
-    // Read shaders
-    std::string vertShaderStr = readFile(vertex_path);
-    std::string fragShaderStr = readFile(fragment_path);
-    const char *vertShaderSrc = vertShaderStr.c_str();
-    const char *fragShaderSrc = fragShaderStr.c_str();
-
-	loadVertexShader(program, vertShaderSrc);
-	loadFragmentShader(program, fragShaderSrc);
+	glAttachShader(program, vertex);
+	glAttachShader(program, fragment);
 
 	//Link program
 	glLinkProgram(program);

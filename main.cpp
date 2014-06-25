@@ -6,9 +6,10 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
-#include <iostream>
-#include <fstream>
 #include <math.h>
+#include <iostream>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "GLShader.h"
 
@@ -58,6 +59,11 @@ GLuint gIBO = 0;
 
 //GLfloat vertexData[vertexcount*2];
 std::vector<Vertex> vertices;
+
+glm::mat4 projectionMatrix;
+glm::mat4 viewMatrix;
+GLint projectionMatrixLocation;
+GLint viewMatrixLocation;
 
 bool init()
 {
@@ -129,13 +135,13 @@ bool init()
 
 bool initGL()
 {
-	//Success flag
-	bool success = true;
-
 	//Generate program
 	gProgramID = glCreateProgram();
 
-	gProgramID = LoadShader("vertex.vert", "fragment.frag");
+	GLint vertexShader = loadVertexShader("vertex.vert");
+	GLint fragmentShader = loadFragmentShader("fragment.frag");
+
+	gProgramID = loadShader(vertexShader, fragmentShader);
 
 	//Initialize clear color
 	glClearColor( 0.f, 0.f, 0.f, 1.f );
@@ -183,8 +189,20 @@ bool initGL()
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, gIBO );
 	glBufferData( GL_ELEMENT_ARRAY_BUFFER, vertexcount * sizeof(GLuint), indexData, GL_STATIC_DRAW );
 	
+	//Create projection and view matrices
+	projectionMatrix = glm::perspective(60.0f, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.f);
+	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.0f, -1.f));
 
-	return success;
+	//Get locations of view and projection matrices
+	projectionMatrixLocation = glGetUniformLocation(gProgramID, "projectionMatrix");
+	viewMatrixLocation = glGetUniformLocation(gProgramID, "viewMatrix");
+
+	if(projectionMatrixLocation == -1 || viewMatrixLocation == -1) {
+		printf("Matrix Locations not found in program!\n");
+		return false;
+	}
+
+	return true;
 }
 
 void handleKeys( unsigned char key, int x, int y )
@@ -234,12 +252,20 @@ void render()
 		//Bind program
 		glUseProgram( gProgramID );
 
+		//Apply projection and view matrices
+		glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, &projectionMatrix[0][0]);
+		glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, &viewMatrix[0][0]);
+
+		//Enable vertex arrays
 		glEnableClientState( GL_VERTEX_ARRAY );
 
 		//Set vertex data and draw
 		glBindBuffer( GL_ARRAY_BUFFER, gVBO );
 		glVertexPointer( 2, GL_FLOAT, sizeof(Vertex), NULL );
 		glDrawElements( GL_POINTS, vertexcount, GL_UNSIGNED_INT, NULL );
+
+		//Disable vertex arrays
+		glDisableClientState( GL_VERTEX_ARRAY );
 
 		//Unbind program
 		glUseProgram( NULL );
