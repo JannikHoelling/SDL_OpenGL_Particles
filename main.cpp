@@ -8,13 +8,19 @@
 #include <vector>
 #include <math.h>
 #include <iostream>
+#include <cstdlib>
+#include <ctime>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 
 #include "GLShader.hpp"
 
-typedef struct { 
-	GLfloat x, y, dx, dy;
+typedef struct {
+	glm::vec3 p;
+	glm::vec3 d;
+	
 } Vertex;
 
 //Screen dimension constants
@@ -49,7 +55,7 @@ SDL_GLContext gContext;
 bool gRenderQuad = true;
 
 //Program settings
-const int vertexcount = 128;
+const int vertexcount = 1024;
 
 //Graphics program
 GLuint gProgramID = 0;
@@ -64,6 +70,10 @@ glm::mat4 projectionMatrix;
 glm::mat4 viewMatrix;
 GLint projectionMatrixLocation;
 GLint viewMatrixLocation;
+
+glm::vec3 camPos = glm::vec3(0.0f, 0.5f, 1.0f);
+
+const double G = 6.67384E-11;
 
 bool init()
 {
@@ -150,30 +160,26 @@ bool initGL()
 	//IBO data
 	GLuint indexData[vertexcount];
 
+	srand (static_cast <unsigned> (time(0)));
+
 	for(int i=0 ; i < vertexcount; i++) {
 		Vertex v;
 
-		float radius = 0.5f;
+		float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
 
 		float angle = 1.0f/vertexcount * i * M_PI * 2;
 
-		v.x = cos(angle) * radius;
-		v.y = sin(angle) * radius;
+		float radius = 0.5f * (r+0.25f);
 
-		float dx = v.y;
-		float dy = -v.x;
-
-		float length = sqrt(dx * dx + dy * dy);
-		float force = sqrt((6.67384E-11 * 10E03) / length);
-
-		dx /= length;
-		dy /= length;
-
-		dx *= force;
-		dy *= force;
-
-		v.dx = dx;
-		v.dy = dy;
+		//Position of new Vertex
+		v.p = glm::vec3(cos(angle) * radius, 0 , sin(angle) * radius);
+		//Direction for normal orbit
+		v.d = glm::vec3(v.p.z, 0.0f , -v.p.x);
+		//Adjust direction with correct force
+		float length = glm::length(v.d);
+		float force = sqrt((G * 10E04) / length);
+		v.d /= length;
+		v.d *= force;
 
 		vertices.push_back(v);
 		indexData[i] = i;
@@ -191,7 +197,13 @@ bool initGL()
 	
 	//Create projection and view matrices
 	projectionMatrix = glm::perspective(60.0f, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.f);
-	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.0f, -1.f));
+	//viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.0f, -1.f));
+
+	viewMatrix = glm::translate(viewMatrix, camPos);
+	/*viewMatrix = glm::rotate(viewMatrix, 605.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+	viewMatrix = glm::rotate(viewMatrix, 1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+	viewMatrix = glm::rotate(viewMatrix, 1.0f, glm::vec3(0.0f, 0.0f, 1.0f));*/
+	viewMatrix = glm::lookAt(camPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	//Get locations of view and projection matrices
 	projectionMatrixLocation = glGetUniformLocation(gProgramID, "projectionMatrix");
@@ -220,18 +232,19 @@ void update()
 	
 	for(int i=0 ; i < vertexcount; i++) {
 
-		float dx = 0.0f - vertices[i].x;
-		float dy = 0.0f - vertices[i].y;
+		float dx = 0.0f - vertices[i].p.x;
+		float dy = 0.0f - vertices[i].p.y;
+		float dz = 0.0f - vertices[i].p.z;
 
-		float r = sqrt(dx * dx + dy * dy);
+		glm::vec3 d = glm::vec3(0.0f) - vertices[i].p;
 
-		float force = (6.67384E-11 * 10E03) / (r*r);
+		float r = glm::length(d);
 
-		vertices[i].dx += dx * force / r;
-		vertices[i].dy += dy * force / r;
+		float force = (G * 10E04) / (r*r);
 
-		vertices[i].x += vertices[i].dx;
-		vertices[i].y += vertices[i].dy;
+		vertices[i].d += d * force / r;
+
+		vertices[i].p += vertices[i].d;
 	}
 
 	// Update VBO
@@ -261,7 +274,7 @@ void render()
 
 		//Set vertex data and draw
 		glBindBuffer( GL_ARRAY_BUFFER, gVBO );
-		glVertexPointer( 2, GL_FLOAT, sizeof(Vertex), NULL );
+		glVertexPointer( 3, GL_FLOAT, sizeof(Vertex), NULL );
 		glDrawElements( GL_POINTS, vertexcount, GL_UNSIGNED_INT, NULL );
 
 		//Disable vertex arrays
