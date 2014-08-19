@@ -1,6 +1,5 @@
 #include "GLShader.hpp"
 
-#include <string>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -117,6 +116,7 @@ GLuint loadVertexShader(const char *vertex_path)
 	else {
 		printf("Loaded Vertex Shader correctly!\n");
 		
+		printShaderLog(vertexShader);
 
 		return vertexShader;
 	}
@@ -147,11 +147,46 @@ GLuint loadFragmentShader(const char *fragment_path)
 	}
 	else {
 		printf("Loaded Fragment Shader correctly!\n");
+
+		printShaderLog(fragmentShader);
+
 		return fragmentShader;
 	}
 }
 
-GLuint loadShader(GLuint vertex, GLuint fragment)
+GLuint loadComputeShader(const char *compute_path) 
+{
+	std::string comShaderStr = readFile(compute_path);
+	const char *comShaderSrc = comShaderStr.c_str();
+
+	//Create fragment shader
+	GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
+
+	//Set fragment source
+	glShaderSource(computeShader, 1, &comShaderSrc, NULL);
+
+	//Compile fragment source
+	glCompileShader( computeShader );
+
+	//Check fragment shader for errors
+	GLint fShaderCompiled = GL_FALSE;
+	glGetShaderiv( computeShader, GL_COMPILE_STATUS, &fShaderCompiled);
+	if( fShaderCompiled != GL_TRUE )
+	{
+		printf( "Unable to compile compute shader %d!\n", computeShader);
+		printShaderLog(computeShader);
+		return -1;
+	}
+	else {
+		printf("Loaded Compute Shader correctly!\n");
+
+		printShaderLog(computeShader);
+
+		return computeShader;
+	}
+}
+
+GLuint loadProgram(GLuint vertex, GLuint fragment)
 {
 	GLuint program = glCreateProgram();
 
@@ -174,4 +209,48 @@ GLuint loadShader(GLuint vertex, GLuint fragment)
 	}
 
     return program;
+}
+
+GLuint loadComputeProgram(GLuint compute) {
+	GLuint program = glCreateProgram();
+
+	glAttachShader(program, compute);
+
+	//Link program
+	glLinkProgram(program);
+
+	//Check for errors
+	GLint programSuccess = GL_TRUE;
+	glGetProgramiv(program, GL_LINK_STATUS, &programSuccess);
+	if(programSuccess != GL_TRUE)
+	{
+		printf("Error linking compute program %d!\n", program);
+		printProgramLog(program);
+	}
+	else {
+		printf("Linked Compute Program correctly!\n");
+	}
+
+    return program;
+}
+
+void glCheckError(GLenum error, std::string location) {
+	std::string errorName = "NULL";
+
+	switch(error) {
+	case GL_NO_ERROR:
+		return;
+	case GL_INVALID_ENUM:
+		errorName = "GL_INVALID_ENUM"; break;
+	case GL_INVALID_VALUE:
+		errorName = "GL_INVALID_VALUE"; break;
+	case GL_INVALID_OPERATION:
+		errorName = "GL_INVALID_OPERATION"; break;
+	case GL_INVALID_FRAMEBUFFER_OPERATION:
+		errorName = "GL_INVALID_FRAMEBUFFER_OPERATION"; break;
+	case GL_OUT_OF_MEMORY:
+		errorName = "GL_OUT_OF_MEMORY"; break;
+	}
+	
+	std::cerr << location << ": " << errorName << std::endl;
 }

@@ -1,0 +1,32 @@
+﻿#version 430
+
+uniform float timeScale;
+
+layout(std430, binding = 0) buffer positions
+{
+	vec4 pos[];
+};
+
+layout(std430, binding = 1) buffer velocities
+{
+	vec4 vel[];
+};
+
+layout (local_size_x = 1024, local_size_y = 1) in;
+void main() {
+	uint i = gl_GlobalInvocationID.x;
+	//uint i = gl_GlobalInvocationID​.x;
+
+	//uint i = gl_NumWorkGroups;
+
+	//uint i = gl_LocalInvocationIndex;
+
+	vec4 d = -pos[i];
+
+	float r = length(d);
+	float force = (6.67384e-11 * 10E04) / (r*r);
+	vel[i] += d * force * timeScale / r;
+
+
+	pos[i] += vel[i] * timeScale;
+}
