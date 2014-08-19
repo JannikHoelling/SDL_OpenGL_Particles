@@ -27,7 +27,10 @@ bool useCL = true;
 const bool useAntialiasing = true;
 GLfloat timeScale = 0.25f;
 
-const int particleCount = 256 * 256 * 32;
+glm::vec3 camPos = glm::vec3(0.0f, 0.25f, 1.0f);
+float camAngle = 0;
+
+const int particleCount = 256 * 256 * 2;
 
 //Starts up SDL, creates window, and initializes OpenGL
 bool init();
@@ -40,7 +43,7 @@ void handleKeys( unsigned char key, int x, int y );
 
 //Per frame update
 void update();
-//void clUpdate();
+void cpuUpdate();
 void computeUpdate();
 
 //Renders quad to the screen
@@ -64,6 +67,7 @@ GLuint shaderProgram = 0;
 GLuint computeProgram = 0;
 GLuint pos_v_ID = 0;
 GLuint vel_v_ID = 0;
+GLuint vao_ID = 0;
 
 glm::vec4 pos[particleCount];
 glm::vec4 vel[particleCount];
@@ -76,7 +80,6 @@ GLint viewMatrixLocation;
 GLint posLocation;
 GLint velLocation;
 
-glm::vec3 camPos = glm::vec3(0.0f, 0.25f, 1.0f);
 
 bool init()
 {
@@ -216,15 +219,24 @@ bool initGLObjects()
 		vel[i] = v;
 	}
 
+	//lGenVertexArrays(1, &vao_ID);
+	//glBindVertexArray(vao_ID);
+
 	//Create VBO
 	glGenBuffers( 1, &pos_v_ID );
 	glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
 	glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &pos, GL_DYNAMIC_DRAW );
 
+	//glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), 0);
+	//glEnableVertexAttribArray(0);
+
 	//Create velID
 	glGenBuffers( 1, &vel_v_ID );
 	glBindBuffer( GL_ARRAY_BUFFER, vel_v_ID );
 	glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &vel, GL_DYNAMIC_DRAW );
+
+	//glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), 0);
+	//glEnableVertexAttribArray(1);
 	
 	//Create projection and view matrices
 	projectionMatrix = glm::perspective(60.0f, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.f);
@@ -272,7 +284,15 @@ void handleKeys( unsigned char key, int x, int y )
 	}
 }
 
-void update()
+void update() {
+	//camAngle+=0.05f;
+	camPos = glm::vec3(cos(camAngle), 0.25f , sin(camAngle));
+
+	viewMatrix = glm::translate(viewMatrix, camPos);
+	viewMatrix = glm::lookAt(camPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
+void cpuUpdate()
 {	
 	for(int i=0 ; i < particleCount; i++) {
 
@@ -327,26 +347,28 @@ void render()
 		glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, &viewMatrix[0][0]);
 
 		//Enable vertex arrays
-		glEnableClientState( GL_VERTEX_ARRAY );
+		//glEnableClientState( GL_VERTEX_ARRAY );
 
 		// TEST
-		//glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
-		//glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), 0);
-		//glCheckError(glGetError(), "DrawArrays");
-		//glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
-		//glBindAttribLocation(shaderProgram, 0, "position");
+		//glBindVertexArray(vao_ID);
+
+		glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), 0);
+
+		glBindBuffer( GL_ARRAY_BUFFER, vel_v_ID );
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), 0);
 
 		//Set vertex data and draw
-		glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
-		glVertexPointer( 3, GL_FLOAT, sizeof(glm::vec4), NULL );
+		//glVertexPointer( 3, GL_FLOAT, sizeof(glm::vec4), NULL );
 
-		//glDrawElements( GL_POINTS, particleCount, GL_UNSIGNED_INT, NULL );
 		glDrawArrays(GL_POINTS, 0, particleCount);
 
 		glCheckError(glGetError(), "DrawArrays");
 
 		//Disable vertex arrays
-		glDisableClientState( GL_VERTEX_ARRAY );
+		//glDisableClientState( GL_VERTEX_ARRAY );
 		
 		//Unbind program
 		glUseProgram( NULL );
@@ -408,8 +430,10 @@ int main( int argc, char* args[] )
 				computeUpdate();
 			}
 			else {
-				update();
+				cpuUpdate();
 			}
+
+			update();
 
 			render();
 

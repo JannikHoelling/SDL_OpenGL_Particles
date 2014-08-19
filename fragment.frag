@@ -1,6 +1,6 @@
 #version 430
 
-in vec4 color;
+//in vec4 color;
 out vec4 outColor;
 
 void main() {

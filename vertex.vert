@@ -11,6 +11,6 @@ layout(location = 0)  in vec4 position;
 void main()
 {
     //Process vertex
-	//color = velocity;
+	//color = normalize(velocity);
     gl_Position = projectionMatrix * viewMatrix * position;
 }
