@@ -3,14 +3,14 @@
 uniform mat4 projectionMatrix;
 uniform mat4 viewMatrix;
 
-in vec4 position;
-in vec4 velocity;
+layout(location = 0)  in vec4 position;
+//layout(location = 1)  in vec4 velocity;
 
-out vec4 color;
+//out vec4 color;
 
 void main()
 {
     //Process vertex
-	color = velocity;
+	//color = velocity;
     gl_Position = projectionMatrix * viewMatrix * position;
 }

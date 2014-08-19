@@ -2,7 +2,6 @@
 #include <SDL.h>
 #include <gl\glew.h>
 #include <SDL_opengl.h>
-#include <gl\glu.h>
 #include <stdio.h>
 #include <string>
 #include <iostream>
@@ -24,8 +23,11 @@ const float MASS = 10E4f;
 //Screen dimension constants
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
-
+bool useCL = true;
 const bool useAntialiasing = true;
+GLfloat timeScale = 0.25f;
+
+const int particleCount = 256 * 256 * 32;
 
 //Starts up SDL, creates window, and initializes OpenGL
 bool init();
@@ -48,7 +50,6 @@ void render();
 void close();
 void clInfo();
 
-
 //The window we'll be rendering to
 SDL_Window* gWindow = NULL;
 
@@ -57,10 +58,6 @@ SDL_GLContext gContext;
 
 //Render flag
 bool gRenderQuad = true;
-
-//Program settings
-
-const int particleCount = 256 * 256 * 8;
 
 //Graphics program
 GLuint shaderProgram = 0;
@@ -79,11 +76,7 @@ GLint viewMatrixLocation;
 GLint posLocation;
 GLint velLocation;
 
-GLfloat timeScale = 0.25f;
-
 glm::vec3 camPos = glm::vec3(0.0f, 0.25f, 1.0f);
-
-bool useCL = true;
 
 bool init()
 {
@@ -101,9 +94,9 @@ bool init()
 	else
 	{
 		//Use OpenGL 3.1 core
-		//SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 4 );
-		//SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 4 );
-		//SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 1 );
+		SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
 		
 		//Anti Aliasing
 		if(useAntialiasing) {
@@ -137,13 +130,15 @@ bool init()
 				const GLubyte* renderer = glGetString(GL_RENDERER);
 				const GLubyte* version = glGetString(GL_VERSION);
 
+				const GLubyte* glewVersion = glewGetString(GLEW_VERSION);
+
 				//GLint max;
 				//glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &max);
 
 				std::cout << "OpenGL Vendor:" << vendor << std::endl;
 				std::cout << "OpenGL Renderer:" << renderer << std::endl;
 				std::cout << "OpenGL Version:" << version << std::endl;
-				///std::cout << "Max:" << max << std::endl;
+				std::cout << "Glew Version:" << glewVersion << std::endl;
 
 				//Initialize GLEW
 				glewExperimental = GL_TRUE; 
@@ -151,6 +146,7 @@ bool init()
 				if( glewError != GLEW_OK )
 				{
 					printf( "Error initializing GLEW! %s\n", glewGetErrorString( glewError ) );
+
 				}
 				else {
 					printf("GLEW Init: Success!\n");
@@ -266,6 +262,13 @@ void handleKeys( unsigned char key, int x, int y )
 	if( key == 'e' )
 	{
 		useCL = !useCL;
+
+		// Update VBO
+		glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
+		glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &pos, GL_DYNAMIC_DRAW ); 
+
+		glBindBuffer( GL_ARRAY_BUFFER, vel_v_ID );
+		glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &vel, GL_DYNAMIC_DRAW ); 
 	}
 }
 
@@ -326,6 +329,13 @@ void render()
 		//Enable vertex arrays
 		glEnableClientState( GL_VERTEX_ARRAY );
 
+		// TEST
+		//glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
+		//glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), 0);
+		//glCheckError(glGetError(), "DrawArrays");
+		//glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
+		//glBindAttribLocation(shaderProgram, 0, "position");
+
 		//Set vertex data and draw
 		glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
 		glVertexPointer( 3, GL_FLOAT, sizeof(glm::vec4), NULL );
@@ -337,7 +347,7 @@ void render()
 
 		//Disable vertex arrays
 		glDisableClientState( GL_VERTEX_ARRAY );
-
+		
 		//Unbind program
 		glUseProgram( NULL );
 	}
