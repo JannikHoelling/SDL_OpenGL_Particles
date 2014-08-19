@@ -1,6 +1,5 @@
 #include "GLShader.hpp"
 
-#include <string>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -117,6 +116,7 @@ GLuint loadVertexShader(const char *vertex_path)
 	else {
 		printf("Loaded Vertex Shader correctly!\n");
 		
+		printShaderLog(vertexShader);
 
 		return vertexShader;
 	}
@@ -147,6 +147,9 @@ GLuint loadFragmentShader(const char *fragment_path)
 	}
 	else {
 		printf("Loaded Fragment Shader correctly!\n");
+
+		printShaderLog(fragmentShader);
+
 		return fragmentShader;
 	}
 }
