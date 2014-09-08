@@ -1,7 +1,6 @@
-﻿//Using SDL, SDL OpenGL, GLEW, standard IO, and strings
-#include <SDL.h>
-#include <gl\glew.h>
-#include <SDL_opengl.h>
+﻿#include <GL/glew.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_opengl.h>
 #include <stdio.h>
 #include <string>
 #include <iostream>
@@ -30,13 +29,11 @@ GLfloat timeScale = 0.25f;
 glm::vec3 camPos = glm::vec3(0.0f, 0.25f, 1.0f);
 float camAngle = 0;
 
-const int particleCount = 256 * 256 * 2;
+const int particleCount = 256 * 256 * 4;
 
 //Starts up SDL, creates window, and initializes OpenGL
 bool init();
-
 bool initGLObjects();
-//bool initCL();
 
 //Input handler
 void handleKeys( unsigned char key, int x, int y );
@@ -65,28 +62,29 @@ bool gRenderQuad = true;
 //Graphics program
 GLuint shaderProgram = 0;
 GLuint computeProgram = 0;
-GLuint pos_v_ID = 0;
-GLuint vel_v_ID = 0;
-GLuint vao_ID = 0;
 
-glm::vec4 pos[particleCount];
-glm::vec4 vel[particleCount];
+struct Particle {
+    glm::vec4 pos;
+    glm::vec4 vel;
+};
+
+Particle particles[particleCount];
+GLuint particleVBO;
 
 glm::mat4 projectionMatrix;
 glm::mat4 viewMatrix;
 GLint projectionMatrixLocation;
 GLint viewMatrixLocation;
 
-GLint posLocation;
-GLint velLocation;
-
+//GLint posLocation;
+//GLint velLocation;
 
 bool init()
 {
 	//Initialization flag
 	bool success = true;
 
-	std::cout << particleCount << std::endl;
+	std::cout << "Particles:" << particleCount << std::endl;
 
 	//Initialize SDL
 	if( SDL_Init( SDL_INIT_VIDEO ) < 0 )
@@ -97,10 +95,10 @@ bool init()
 	else
 	{
 		//Use OpenGL 3.1 core
-		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
-		SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 1 );
+		//SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 4 );
+		//SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 3 );
 		SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
-		
+
 		//Anti Aliasing
 		if(useAntialiasing) {
 			SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
@@ -143,8 +141,9 @@ bool init()
 				std::cout << "OpenGL Version:" << version << std::endl;
 				std::cout << "Glew Version:" << glewVersion << std::endl;
 
+
 				//Initialize GLEW
-				glewExperimental = GL_TRUE; 
+				glewExperimental = GL_TRUE;
 				GLenum glewError = glewInit();
 				if( glewError != GLEW_OK )
 				{
@@ -160,7 +159,7 @@ bool init()
 				{
 					printf( "Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
 				}
-				
+
 				//Initialize OpenGL
 				if( !initGLObjects() )
 				{
@@ -200,44 +199,32 @@ bool initGLObjects()
 		glm::vec4 v;
 
 		float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		//float r2 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		//float r3 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
 
 		float angle = 1.0f/particleCount * i * PI * 2.0f;
-
 		float radius = 1.0f * (r+0.1f);
 
-		//Position of new Vertex
 		p = glm::vec4(cos(angle) * radius, 0.05f , sin(angle) * radius, 0);
-		//Direction for normal orbit
 		v = glm::vec4(p.z, -p.y , -p.x , 0);
-		//Adjust direction with correct force
+
 		float length = glm::length(v);
 		float force = sqrtf((G * MASS) / length);
 		v /= length;
 		v *= force;
 
-		pos[i] = p;
-		vel[i] = v;
+        //p = glm::vec4(r-0.8f, r2-0.8f, r3-0.8f, 0);
+        //v = glm::vec4(0, 0, 0, 0);
+
+		particles[i].pos = p;
+		particles[i].vel = v;
 	}
 
-	//lGenVertexArrays(1, &vao_ID);
-	//glBindVertexArray(vao_ID);
+    //Create VBO
+    glGenBuffers( 1, &particleVBO );
+	glBindBuffer( GL_ARRAY_BUFFER, particleVBO );
+	glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(Particle), &particles, GL_DYNAMIC_DRAW );
 
-	//Create VBO
-	glGenBuffers( 1, &pos_v_ID );
-	glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
-	glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &pos, GL_DYNAMIC_DRAW );
-
-	//glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), 0);
-	//glEnableVertexAttribArray(0);
-
-	//Create velID
-	glGenBuffers( 1, &vel_v_ID );
-	glBindBuffer( GL_ARRAY_BUFFER, vel_v_ID );
-	glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &vel, GL_DYNAMIC_DRAW );
-
-	//glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), 0);
-	//glEnableVertexAttribArray(1);
-	
 	//Create projection and view matrices
 	projectionMatrix = glm::perspective(60.0f, (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.f);
 	//viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.0f, -1.f));
@@ -251,9 +238,6 @@ bool initGLObjects()
 	//Get locations of view and projection matrices
 	projectionMatrixLocation = glGetUniformLocation(shaderProgram, "projectionMatrix");
 	viewMatrixLocation = glGetUniformLocation(shaderProgram, "viewMatrix");
-
-	posLocation = glGetAttribLocation(shaderProgram, "position"); 
-	velLocation = glGetAttribLocation(shaderProgram, "velocity"); 
 
 	if(projectionMatrixLocation == -1 || viewMatrixLocation == -1) {
 		printf("Matrix Locations not found in program!\n");
@@ -269,18 +253,16 @@ void handleKeys( unsigned char key, int x, int y )
 	if( key == 'q' )
 	{
 		gRenderQuad = !gRenderQuad;
-		
+
 	}
 	if( key == 'e' )
 	{
 		useCL = !useCL;
 
-		// Update VBO
-		glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
-		glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &pos, GL_DYNAMIC_DRAW ); 
+        std::cout << "Use compute:" << useCL << std::endl;
 
-		glBindBuffer( GL_ARRAY_BUFFER, vel_v_ID );
-		glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &vel, GL_DYNAMIC_DRAW ); 
+		glBindBuffer( GL_ARRAY_BUFFER, particleVBO );
+		glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(Particle), &particles, GL_DYNAMIC_DRAW );
 	}
 }
 
@@ -293,40 +275,39 @@ void update() {
 }
 
 void cpuUpdate()
-{	
+{
 	for(int i=0 ; i < particleCount; i++) {
 
-		glm::vec4 d = glm::vec4(0.0f) - pos[i];
+		glm::vec4 d = glm::vec4(0.0f) - particles[i].pos;
 
 		float r = glm::length(d);
 
 		float force = (G * MASS) / (r*r);
 
-		vel[i] += d * force * timeScale / r;
+		particles[i].vel += d * force * timeScale / r;
 
-		pos[i] += vel[i] * timeScale;
+		particles[i].pos += particles[i].vel * timeScale;
 	}
 
 	// Update VBO
-	glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
-	glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &pos, GL_DYNAMIC_DRAW ); 
+	//glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
+	//glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &pos, GL_DYNAMIC_DRAW );
 
-	glBindBuffer( GL_ARRAY_BUFFER, vel_v_ID );
-	glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &vel, GL_DYNAMIC_DRAW ); 
+	//glBindBuffer( GL_ARRAY_BUFFER, vel_v_ID );
+	//glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(glm::vec4), &vel, GL_DYNAMIC_DRAW );
+
+	glBindBuffer( GL_ARRAY_BUFFER, particleVBO );
+    glBufferData( GL_ARRAY_BUFFER, particleCount * sizeof(Particle), &particles, GL_DYNAMIC_DRAW );
 }
 
 void computeUpdate() {
 	glUseProgram(computeProgram);
 	glUniform1f(glGetUniformLocation(computeProgram, "timeScale"), timeScale);
-	//glUniform4v(glGetUniformLocation(computeProgram, "pos"), pos);
-	//glUniform4v(glGetUniformLocation(computeProgram, "vel"), pos);
-	//glBindBuffer( GL_ARRAY_BUFFER,  );
 
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pos_v_ID);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vel_v_ID);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, particleVBO);
 	glCheckError(glGetError(), "Dispatch compute shader binding");
 
-    glDispatchCompute(particleCount/WORK_GROUP_SIZE, 1, 1); // 512^2 threads in blocks of 16^2
+    glDispatchCompute(particleCount/WORK_GROUP_SIZE, 1, 1);
     glCheckError(glGetError(), "Dispatch compute shader");
 	glUseProgram(0);
 }
@@ -335,10 +316,11 @@ void render()
 {
 	//Clear color buffer
 	glClear( GL_COLOR_BUFFER_BIT );
-	
+
 	//Render quad
 	if( gRenderQuad )
 	{
+        glPointSize(0.1f);
 		//Bind program
 		glUseProgram( shaderProgram );
 
@@ -346,30 +328,16 @@ void render()
 		glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, &projectionMatrix[0][0]);
 		glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, &viewMatrix[0][0]);
 
-		//Enable vertex arrays
-		//glEnableClientState( GL_VERTEX_ARRAY );
-
-		// TEST
-		//glBindVertexArray(vao_ID);
-
-		glBindBuffer( GL_ARRAY_BUFFER, pos_v_ID );
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), 0);
-
-		glBindBuffer( GL_ARRAY_BUFFER, vel_v_ID );
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), 0);
-
-		//Set vertex data and draw
-		//glVertexPointer( 3, GL_FLOAT, sizeof(glm::vec4), NULL );
+        glBindBuffer( GL_ARRAY_BUFFER, particleVBO );
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), 0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Particle), (void*)sizeof(glm::vec4));
 
 		glDrawArrays(GL_POINTS, 0, particleCount);
 
 		glCheckError(glGetError(), "DrawArrays");
 
-		//Disable vertex arrays
-		//glDisableClientState( GL_VERTEX_ARRAY );
-		
 		//Unbind program
 		glUseProgram( NULL );
 	}
@@ -380,7 +348,7 @@ void close()
 	//Deallocate program
 	glDeleteProgram( shaderProgram );
 
-	//Destroy window	
+	//Destroy window
 	SDL_DestroyWindow( gWindow );
 	gWindow = NULL;
 
@@ -402,7 +370,7 @@ int main( int argc, char* args[] )
 
 		//Event handler
 		SDL_Event e;
-		
+
 		//Enable text input
 		SDL_StartTextInput();
 
@@ -437,11 +405,11 @@ int main( int argc, char* args[] )
 
 			render();
 
-			
+
 			//Update screen
 			SDL_GL_SwapWindow( gWindow );
 		}
-		
+
 		//Disable text input
 		SDL_StopTextInput();
 	}

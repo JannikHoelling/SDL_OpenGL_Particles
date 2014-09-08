@@ -29,3 +29,8 @@ _ReSharper*/
 [Tt]est[Rr]esult*
 *.vcxproj
 *.vcxproj.filters
+
+*.cbp
+*.depend
+*.layout
+makefile
