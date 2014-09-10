@@ -32,13 +32,13 @@ void printProgramLog( GLuint program )
 		//Program log length
 		int infoLogLength = 0;
 		int maxLength = infoLogLength;
-		
+
 		//Get info string length
 		glGetProgramiv( program, GL_INFO_LOG_LENGTH, &maxLength );
-		
+
 		//Allocate string
 		char* infoLog = new char[ maxLength ];
-		
+
 		//Get info log
 		glGetProgramInfoLog( program, maxLength, &infoLogLength, infoLog );
 		if( infoLogLength > 0 )
@@ -46,7 +46,7 @@ void printProgramLog( GLuint program )
 			//Print Log
 			printf( "%s\n", infoLog );
 		}
-		
+
 		//Deallocate string
 		delete[] infoLog;
 	}
@@ -64,13 +64,13 @@ void printShaderLog( GLuint shader )
 		//Shader log length
 		int infoLogLength = 0;
 		int maxLength = infoLogLength;
-		
+
 		//Get info string length
 		glGetShaderiv( shader, GL_INFO_LOG_LENGTH, &maxLength );
-		
+
 		//Allocate string
 		char* infoLog = new char[ maxLength ];
-		
+
 		//Get info log
 		glGetShaderInfoLog( shader, maxLength, &infoLogLength, infoLog );
 		if( infoLogLength > 0 )
@@ -89,7 +89,7 @@ void printShaderLog( GLuint shader )
 }
 
 
-GLuint loadVertexShader(const char *vertex_path) 
+GLuint loadVertexShader(const char *vertex_path)
 {
 	std::string vertShaderStr = readFile(vertex_path);
 	const char *vertShaderSrc = vertShaderStr.c_str();
@@ -115,14 +115,14 @@ GLuint loadVertexShader(const char *vertex_path)
 	}
 	else {
 		printf("Loaded Vertex Shader correctly!\n");
-		
+
 		printShaderLog(vertexShader);
 
 		return vertexShader;
 	}
 }
 
-GLuint loadFragmentShader(const char *fragment_path) 
+GLuint loadFragmentShader(const char *fragment_path)
 {
 	std::string fragShaderStr = readFile(fragment_path);
 	const char *fragShaderSrc = fragShaderStr.c_str();
@@ -154,7 +154,7 @@ GLuint loadFragmentShader(const char *fragment_path)
 	}
 }
 
-GLuint loadComputeShader(const char *compute_path) 
+GLuint loadComputeShader(const char *compute_path)
 {
 	std::string comShaderStr = readFile(compute_path);
 	const char *comShaderSrc = comShaderStr.c_str();
@@ -241,16 +241,16 @@ void glCheckError(GLenum error, std::string location) {
 	case GL_NO_ERROR:
 		return;
 	case GL_INVALID_ENUM:
-		errorName = "GL_INVALID_ENUM"; break;
+		errorName = "GL_INVALID_ENUM"; exit(1); break;
 	case GL_INVALID_VALUE:
-		errorName = "GL_INVALID_VALUE"; break;
+		errorName = "GL_INVALID_VALUE"; exit(1); break;
 	case GL_INVALID_OPERATION:
-		errorName = "GL_INVALID_OPERATION"; break;
+		errorName = "GL_INVALID_OPERATION"; exit(1); break;
 	case GL_INVALID_FRAMEBUFFER_OPERATION:
-		errorName = "GL_INVALID_FRAMEBUFFER_OPERATION"; break;
+		errorName = "GL_INVALID_FRAMEBUFFER_OPERATION"; exit(1); break;
 	case GL_OUT_OF_MEMORY:
-		errorName = "GL_OUT_OF_MEMORY"; break;
+		errorName = "GL_OUT_OF_MEMORY"; exit(1); break;
 	}
-	
+
 	std::cerr << location << ": " << errorName << std::endl;
 }

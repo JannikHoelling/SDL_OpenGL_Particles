@@ -1,6 +1,7 @@
 ﻿#version 430
 
 uniform float timeScale;
+uniform vec3 center;
 
 struct Particle{
     vec4 pos;
@@ -16,11 +17,36 @@ layout (local_size_x = 1024, local_size_y = 1) in;
 void main() {
 	uint i = gl_GlobalInvocationID.x;
 
-	vec4 d = -particles[i].pos;
+	vec3 d = center.xyz - particles[i].pos.xyz;
 
 	float r = length(d);
 	float force = (6.67384e-11 * 10E04) / (r*r);
-	particles[i].vel += d * force * timeScale / r;
+	particles[i].vel.xyz += d * force * timeScale / r;
 
-	particles[i].pos += particles[i].vel * timeScale;
+    //particles[i].vel.xyz = particles[i].vel.xyz * 1;
+    particles[i].pos += particles[i].vel * timeScale;
+
+    /*r = length(-particles[i].pos.xyz);
+    if(r > 1) {
+        particles[i].vel.xyz = vec3(0);
+        particles[i].pos.xyz = (particles[i].pos.xyz / r) * 0.99;
+    }*/
 }
+
+// NBODY
+/*layout (local_size_x = 1024, local_size_y = 1) in;
+void main() {
+	uint i = gl_GlobalInvocationID.x;
+
+    for(int j = 0; j < 2048; j++) {
+        if(i != j) {
+            vec3 d = particles[j].pos.xyz - particles[i].pos.xyz;
+
+            float r = length(d);
+            float force = (6.67384e-11 * 10E04) / (r*r);
+            particles[i].vel.xyz += d * force * timeScale / r;
+        }
+    }
+    particles[i].vel.xyz = particles[i].vel.xyz * 0.95;
+    particles[i].pos += particles[i].vel * timeScale;
+}*/
